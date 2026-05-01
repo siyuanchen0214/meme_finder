@@ -1,0 +1,22 @@
+# Whitelist the creators/accounts you approve.
+#
+# For MVP we use RSS/Atom feeds because it's cheap and easy to automate.
+# - YouTube channel RSS:
+#   https://www.youtube.com/feeds/videos.xml?channel_id=<CHANNEL_ID>
+# - Many blogs/newsletters also provide RSS feeds.
+#
+# Later we can add platform-specific scrapers (Bilibili/小红书/知乎/IG) if needed.
+
+sources:
+  - name: "The Big Bang Comedy"
+    platform: "YouTube"
+    homepage_url: "https://www.youtube.com/@TheBigBangComedy"
+
+  - name: "德云社相声"
+    platform: "YouTube"
+    homepage_url: "https://www.youtube.com/@DeYun-Crosstalk"
+
+  - name: "Example RSS Feed"
+    platform: "RSS"
+    feed_url: "https://example.com/feed.xml"
+
