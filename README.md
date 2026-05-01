@@ -30,11 +30,18 @@ Edit `sources.yaml` to include your approved creators.
 
 3) Configure email + (optional) AI
 
-```bash
-cp .env.example .env
-```
+Create `.env` in the repo root (it is gitignored), for example:
 
-Fill in `.env`.
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=you@gmail.com
+SMTP_PASSWORD=your_gmail_app_password
+EMAIL_FROM=you@gmail.com
+EMAIL_TO=you@gmail.com
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+```
 
 4) Run (dry-run prints to stdout)
 

@@ -5,9 +5,20 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import yaml
+from dotenv import load_dotenv
 
 from .types import Source
 from .youtube import resolve_channel_id, youtube_rss_from_channel_id
+
+
+def load_app_env() -> None:
+    """Load `MEME_FINDER_DOTENV` if set, else `.env` in the current working directory."""
+    override = os.getenv("MEME_FINDER_DOTENV")
+    path = override or ".env"
+    if path and os.path.isfile(path):
+        load_dotenv(path)
+        return
+    load_dotenv()
 
 
 @dataclass(frozen=True)
@@ -67,11 +78,14 @@ def load_email_from_env() -> EmailConfig:
     if missing:
         raise RuntimeError(f"Missing required env vars for email: {', '.join(missing)}")
 
+    # Gmail app passwords are often copied with spaces; SMTP expects 16 chars without them.
+    smtp_password = os.environ["SMTP_PASSWORD"].replace(" ", "").strip()
+
     return EmailConfig(
         smtp_host=os.environ["SMTP_HOST"],
         smtp_port=int(os.environ["SMTP_PORT"]),
         smtp_username=os.environ["SMTP_USERNAME"],
-        smtp_password=os.environ["SMTP_PASSWORD"],
+        smtp_password=smtp_password,
         email_from=os.environ["EMAIL_FROM"],
         email_to=os.environ["EMAIL_TO"],
     )

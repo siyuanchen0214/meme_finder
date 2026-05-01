@@ -4,9 +4,7 @@ import argparse
 import os
 from datetime import datetime, timezone
 
-from dotenv import load_dotenv
-
-from .config import load_config, load_email_from_env
+from .config import load_app_env, load_config, load_email_from_env
 from .dedupe_llm import llm_should_send
 from .digest import render_digest
 from .emailer import send_email
@@ -38,7 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    load_dotenv()
+    load_app_env()
     cfg = load_config(args.sources, require_email=not args.dry_run)
 
     store = MemoryStore.load(args.state_path)
@@ -119,7 +117,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_test_email(args: argparse.Namespace) -> int:
-    load_dotenv()
+    load_app_env()
     email_cfg = load_email_from_env()
     subject = f"meme_finder SMTP test — {datetime.now(timezone.utc).astimezone().strftime('%Y-%m-%d %H:%M')}"
     send_email(email_cfg, subject=subject, body_markdown=args.message + "\n")
