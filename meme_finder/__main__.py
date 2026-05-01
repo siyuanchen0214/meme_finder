@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
-from .config import load_config
+from .config import load_config, load_email_from_env
 from .dedupe_llm import llm_should_send
 from .digest import render_digest
 from .emailer import send_email
@@ -26,6 +26,13 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--state-path", default=".state/memory.json", help="Path to persistent memory store.")
     run.add_argument("--min-items", type=int, default=10, help="Minimum items to send (may backfill older content).")
     run.add_argument("--max-items", type=int, default=20, help="Maximum items to send.")
+
+    test = sub.add_parser("test-email", help="Send a one-line email to verify SMTP settings in .env.")
+    test.add_argument(
+        "--message",
+        default="meme_finder SMTP test: if you see this, email delivery works.",
+        help="Plain text body for the test message.",
+    )
 
     return p
 
@@ -111,11 +118,22 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_test_email(args: argparse.Namespace) -> int:
+    load_dotenv()
+    email_cfg = load_email_from_env()
+    subject = f"meme_finder SMTP test — {datetime.now(timezone.utc).astimezone().strftime('%Y-%m-%d %H:%M')}"
+    send_email(email_cfg, subject=subject, body_markdown=args.message + "\n")
+    print("Test email sent.")
+    return 0
+
+
 def main() -> int:
     p = build_parser()
     args = p.parse_args()
     if args.cmd == "run":
         return cmd_run(args)
+    if args.cmd == "test-email":
+        return cmd_test_email(args)
     raise RuntimeError("Unknown command")
 
 
