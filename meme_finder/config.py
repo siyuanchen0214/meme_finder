@@ -35,6 +35,7 @@ class EmailConfig:
 class OpenAIConfig:
     api_key: Optional[str]
     model: str = "gpt-4.1-mini"
+    whisper_model: str = "whisper-1"
 
 
 @dataclass(frozen=True)
@@ -95,6 +96,7 @@ def load_openai_from_env() -> OpenAIConfig:
     return OpenAIConfig(
         api_key=os.getenv("OPENAI_API_KEY") or None,
         model=os.getenv("OPENAI_MODEL") or "gpt-4.1-mini",
+        whisper_model=os.getenv("OPENAI_WHISPER_MODEL") or "whisper-1",
     )
 
 

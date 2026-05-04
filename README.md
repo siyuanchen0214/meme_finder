@@ -20,6 +20,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Tests (optional)
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
 2) Configure sources
 
 ```bash
@@ -40,7 +47,8 @@ SMTP_PASSWORD=your_gmail_app_password
 EMAIL_FROM=you@gmail.com
 EMAIL_TO=you@gmail.com
 OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4.1-mini
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_WHISPER_MODEL=whisper-1
 ```
 
 4) Run (dry-run prints to stdout)
@@ -53,6 +61,27 @@ Send email:
 
 ```bash
 python -m meme_finder run --sources sources.yaml
+```
+
+### One YouTube video → email (full audio → OpenAI STT → humor extraction)
+
+`run-video` defaults to **`--transcription-mode openai_audio`**: download audio with **yt-dlp**, transcribe with **OpenAI** (`OPENAI_WHISPER_MODEL`, usually `whisper-1`), then extract multiple joke “bits” with your chat model (`OPENAI_MODEL`).
+
+**System requirements:** install **ffmpeg** (e.g. `brew install ffmpeg`) — needed for audio extract/compression and for splitting very large uploads.
+
+```bash
+python -m meme_finder run-video --url "https://www.youtube.com/watch?v=VIDEO_ID" --model gpt-4o-mini
+```
+
+- Preview without email: `--dry-run`
+- Use YouTube captions only (no download): `--transcription-mode captions`
+- Cheap default for daily `run`: `--transcription-mode auto` (captions first, then STT if missing)
+- No truncation before joke extraction: `--transcript-chars 0` (default for `run-video`)
+
+### Full daily digest transcription modes
+
+```bash
+python -m meme_finder run --sources sources.yaml --transcription-mode auto
 ```
 
 ### Memory / dedupe

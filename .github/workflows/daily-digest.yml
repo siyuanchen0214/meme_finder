@@ -23,6 +23,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # `run` defaults to transcription_mode=auto; short/missing captions trigger OpenAI STT,
+      # which uses yt-dlp FFmpegExtractAudio — ffmpeg is not on ubuntu-latest by default.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -n 1
+
       - name: Cache memory state
         uses: actions/cache@v4
         with:
@@ -51,6 +59,7 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          OPENAI_WHISPER_MODEL: ${{ secrets.OPENAI_WHISPER_MODEL }}
         run: |
           python -m meme_finder run --sources sources.yaml
 
