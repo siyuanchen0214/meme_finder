@@ -11,7 +11,7 @@ def test_llm_should_send_no_api_key():
         recent_texts=[],
     )
     assert send is True
-    assert "disabled" in reason.lower()
+    assert "未启用" in reason
 
 
 def test_llm_should_send_parses_json(mocker):
@@ -45,4 +45,4 @@ def test_llm_should_send_invalid_json_fails_open(mocker):
         recent_texts=[],
     )
     assert send is True
-    assert "parse failed" in reason.lower()
+    assert "解析失败" in reason

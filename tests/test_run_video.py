@@ -37,6 +37,6 @@ def test_run_video_dry_run_one_youtube_url(mocker, capsys):
     assert items_arg[0].title == "Me at the zoo"
 
     out = capsys.readouterr().out
-    assert "Daily Humor Digest" in out
+    assert "每日幽默精选" in out
     assert "jNQXAC9IVRw" in out
     assert "elephants" in out

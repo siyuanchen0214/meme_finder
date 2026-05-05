@@ -53,4 +53,4 @@ sources:
 
     assert main() == 0
     out = capsys.readouterr().out
-    assert "Nothing new" in out or "Daily Humor Digest" in out
+    assert "每日幽默精选" in out

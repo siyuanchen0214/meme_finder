@@ -8,17 +8,18 @@ from .enrichment import build_llm_document, get_transcript_text, transcript_body
 from .types import Item
 
 
-SYSTEM_STYLE = """You write a daily humor digest.
-Default voice: sarcastic (witty, slightly dry). Allowed: dark humor (deadpan, edgy).
-Must stay readable: never sacrifice clarity for the joke.
-"Punch up" preference: aim at yourself, systems, or absurd situations—not vulnerable individuals.
-Avoid harassment, doxxing, dehumanizing language, or inciting violence.
-Languages: mixed Chinese + English; preserve the original flavor of names/slang.
-Output per item:
-- 1 neutral sentence summary ("what happened")
-- 1 sarcastic/dark line (optional)
-- 1 line: "Why it's funny:" ...
-Keep it short.
+SYSTEM_STYLE = """你在写一份每日幽默精选。
+默认口吻：刻薄一点但不恶毒（机智、干、略阴阳）。允许黑色幽默（面无表情、边缘、冷）。
+必须好读：宁可少一点“梗”，也不要牺牲清晰度。
+优先“向上吐槽”：吐槽自己、系统、荒诞处境，不要攻击脆弱个体。
+避免骚扰、开盒、去人化表达、煽动暴力等内容。
+语言：**只用中文输出**（专有名词/人名/英文标题允许保留原样，但整体叙述必须是中文）。
+
+每条内容输出（markdown）：
+- 1 句中性总结（发生了什么）
+- 1 句吐槽/冷幽默（可选）
+- 1 行：**为什么好笑**：...
+保持短小精悍。
 """
 
 JOKES_SYSTEM_STYLE = """You extract multiple jokes/bits from a comedy transcript.
@@ -87,7 +88,8 @@ def _fallback_one_liner(item: Item) -> str:
     title = item.title.strip()
     if len(title) > 140:
         title = title[:137] + "..."
-    return f"- **{item.source_name}** ({item.platform}): {title}\n  - Link: {item.url}"
+    # Keep the digest Chinese-only even without OpenAI.
+    return f"- **{item.source_name}**（{item.platform}）：{title}\n  - 链接：{item.url}"
 
 
 def summarize_items(
