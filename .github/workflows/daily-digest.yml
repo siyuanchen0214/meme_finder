@@ -49,6 +49,29 @@ jobs:
           fi
           printf "%s" "$SOURCES_YAML" > sources.yaml
 
+      # Fail fast with exact secret names (GitHub substitutes missing secrets as empty).
+      - name: Check email & OpenAI secrets
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          ok=1
+          for var in SMTP_HOST SMTP_PORT SMTP_USERNAME SMTP_PASSWORD EMAIL_FROM EMAIL_TO OPENAI_API_KEY; do
+            if [ -z "${!var:-}" ]; then
+              echo "::error::Missing or empty Actions secret: $var — add it under Repo Settings → Secrets and variables → Actions (name must match exactly)."
+              ok=0
+            fi
+          done
+          if [ "$ok" -eq 0 ]; then
+            exit 1
+          fi
+
       - name: Run digest
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -58,7 +81,7 @@ jobs:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL || 'gpt-4o-mini' }}
           OPENAI_WHISPER_MODEL: ${{ secrets.OPENAI_WHISPER_MODEL }}
         run: |
           python -m meme_finder run --sources sources.yaml

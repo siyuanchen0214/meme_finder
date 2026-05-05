@@ -111,7 +111,7 @@ In GitHub repo settings → Secrets and variables → Actions, add:
 - `EMAIL_FROM`
 - `EMAIL_TO`
 - `OPENAI_API_KEY` (optional; leave unset to use fallback)
-- `OPENAI_MODEL` (optional; defaults to `gpt-4.1-mini`)
+- `OPENAI_MODEL` (optional; defaults to `gpt-4o-mini`)
 
 ### Schedule time
 GitHub Actions cron is **UTC**. The workflow is set to:
