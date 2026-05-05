@@ -22,10 +22,10 @@ SYSTEM_STYLE = """你在写一份每日幽默精选。
 保持短小精悍。
 """
 
-JOKES_SYSTEM_STYLE = """You extract multiple jokes/bits from a comedy transcript.
+JOKES_SYSTEM_STYLE = """你从喜剧/综艺/相声/脱口秀的字幕或转写稿中提取多个“梗/段子/笑点片段”。
 
 Hard requirements:
-- Write in the transcript's native language (if it's Chinese, respond in Chinese).
+- **只用中文输出**（专有名词/人名/英文标题允许保留原样，但整体叙述必须是中文）。
 - Extract MULTIPLE distinct jokes/bits (not just one).
 - Each bit must include enough setup/context to be understandable.
 - Keep it short and punchy. Sarcastic/dark humor is allowed, but clarity comes first.
@@ -38,6 +38,50 @@ Output format (markdown), repeat for each bit:
 
 Do not invent content not present in the transcript chunk. If a chunk is low-signal, output fewer bits.
 """
+
+
+def _force_chinese_output(text: str) -> str:
+    """
+    Best-effort post-processing to keep the final digest Chinese-only.
+    We do *not* translate proper nouns/titles; we mainly remove/rename common English labels.
+    """
+    t = (text or "").strip()
+    if not t:
+        return t
+
+    # Normalize common section labels.
+    repl = {
+        "What happened:": "发生了什么：",
+        "What happened": "发生了什么：",
+        "Sarcastic line:": "吐槽一句：",
+        "Sarcastic/dark line:": "吐槽一句：",
+        "Why it's funny:": "为什么好笑：",
+        "Why it’s funny:": "为什么好笑：",
+        "Why it's funny": "为什么好笑：",
+        "Link:": "链接：",
+        "- Link:": "- 链接：",
+    }
+    for a, b in repl.items():
+        t = t.replace(a, b)
+
+    # If the model emits numbered English template lines, strip the pure-English ones.
+    lines = []
+    for line in t.splitlines():
+        s = line.strip()
+        if not s:
+            lines.append(line)
+            continue
+        # Drop lines that look like the English template bullets and contain no CJK at all.
+        has_cjk = any("\u4e00" <= ch <= "\u9fff" for ch in s)
+        if not has_cjk and (
+            s.lower().startswith("what happened")
+            or s.lower().startswith("sarcastic")
+            or s.lower().startswith("why it's funny")
+            or s.lower().startswith("why it’s funny")
+        ):
+            continue
+        lines.append(line)
+    return "\n".join(lines).strip()
 
 
 def _looks_cjk(text: str) -> bool:
@@ -166,8 +210,8 @@ Transcript chunk {idx+1}/{len(chunks)} (language: {lang_hint}):
                 merged = _fallback_one_liner(it)
 
             if it.url and it.url not in merged:
-                merged += f"\n\n- Link: {it.url}"
-            blocks.append(merged)
+                merged += f"\n\n- 链接：{it.url}"
+            blocks.append(_force_chinese_output(merged))
             continue
 
         content = build_llm_document(
@@ -192,9 +236,9 @@ Transcript chunk {idx+1}/{len(chunks)} (language: {lang_hint}):
 
         # Ensure link is included even if model forgets.
         if it.url and it.url not in text:
-            text = text + f"\n- Link: {it.url}"
+            text = text + f"\n- 链接：{it.url}"
 
-        blocks.append(text)
+        blocks.append(_force_chinese_output(text))
 
     return blocks
 
