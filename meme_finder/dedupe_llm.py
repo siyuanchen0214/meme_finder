@@ -4,16 +4,15 @@ import json
 from typing import List, Optional, Tuple
 
 
-DEDUPE_SYSTEM = """You are a deduplication judge for a daily humor digest.
-Goal: avoid sending content that is "very very similar" to previously sent items.
+DEDUPE_SYSTEM = """你是每日幽默精选的“去重裁判”。
+目标：避免发送与历史内容“高度相似/几乎一样”的条目。
 
-Rules:
-- If it is basically the same story/premise/re-upload/clip of the same bit: send=false.
-- If it is a new episode/new story even in the same series/theme: send=true.
-- Prefer being conservative about skipping: only skip when similarity is high.
-- Languages: mixed Chinese/English is fine.
+规则：
+- 如果基本是同一件事/同一段子/同一节目切片/重复上传：send=false
+- 如果是同系列但新一期/新故事：send=true
+- 宁可保守一些：只有在相似度很高时才跳过
 
-Output JSON only, no extra text:
+只输出 JSON，不要输出任何额外文字：
 {"send": true/false, "reason": "...", "similar_to_index": <number or null>}
 """
 
@@ -41,16 +40,16 @@ def llm_should_send(
     If api_key is None, defaults to send=True.
     """
     if not api_key:
-        return True, "LLM dedupe disabled (no API key)."
+        return True, "未启用 LLM 去重（未提供 API key）。"
 
     # Keep prompt bounded.
     recent = recent_texts[-80:]
     recent_block = "\n\n".join([f"[{i}] {t}" for i, t in enumerate(recent)])
 
-    user = f"""Candidate:
+    user = f"""候选内容：
 {candidate_text}
 
-Previously sent items (most recent last):
+历史已发送内容（越靠后越新）：
 {recent_block}
 """
 
@@ -71,5 +70,5 @@ Previously sent items (most recent last):
         return send, reason or ("send" if send else "skip")
     except Exception:
         # Fail open: better to send than to silently drop.
-        return True, "LLM dedupe parse failed; sending."
+        return True, "LLM 去重解析失败；为避免漏发，本条照常发送。"
 
