@@ -301,3 +301,63 @@ def top_answers_for_topic(
     items = dedupe_items(items)
     items.sort(key=engagement_score, reverse=True)
     return items[:top_n]
+
+
+# 全站高赞（不限话题）种子词：一批跨领域、常青、天然多高赞回答的宽泛问题。
+# 知乎开放平台只有“搜索”接口（必须带关键词），没有“全站按赞排序”接口，
+# 因此用这批宽泛词撒网、合并去重后 **纯按赞数** 排，效果上接近“不限话题、谁赞高谁上”。
+# 每天从池子里轮换一批（见 zhihu_digest._rotate），长期覆盖全部领域。
+BROAD_QUERIES = [
+    "有哪些让你相见恨晚的知识",
+    "有哪些颠覆认知的事实",
+    "有哪些受益终身的好习惯",
+    "有哪些实用到爆的生活技巧",
+    "有哪些细思极恐的细节",
+    "有哪些让人醍醐灌顶的回答",
+    "有哪些你后悔没早点知道的事",
+    "职场上有哪些不成文的潜规则",
+    "有哪些显著提升幸福感的好物",
+    "有哪些震撼人心的真实故事",
+    "有哪些让你大开眼界的冷知识",
+    "情感里有哪些扎心的真相",
+    "有哪些改变人生轨迹的建议",
+    "健康方面有哪些常见误区",
+    "历史上有哪些惊人的巧合",
+    "有哪些高质量的思维方式",
+    "有哪些一看就停不下来的神回答",
+    "有哪些让你破防的瞬间",
+    "读书让你明白了哪些道理",
+    "有哪些普通人也能用的赚钱思路",
+]
+
+
+def top_voted_recent(
+    client: ZhihuClient,
+    queries: List[str],
+    *,
+    count_per_query: int = 10,
+    min_votes: int = 0,
+    max_age_days: int = 0,
+    now: Optional[float] = None,
+) -> List[SearchItem]:
+    """不限话题的“全站高赞”：多词撒网 -> 合并去重 -> **纯按赞数** 降序。
+
+    - min_votes：赞数下限（保证确实是高赞）。
+    - max_age_days>0：只保留最近 N 天内编辑/发布的内容（剔除陈年老帖）；
+      edit_time 缺失（0）视为“未知”，予以保留、不误杀。
+    返回完整排序后的列表（不截断），交由上层做去重过滤与取 top。
+    """
+    now = now if now is not None else time.time()
+    collected: List[SearchItem] = []
+    for q in queries:
+        try:
+            collected.extend(client.search(q, count=count_per_query))
+        except ZhihuAPIError:
+            continue
+    if min_votes > 0:
+        collected = [it for it in collected if it.vote_up_count >= min_votes]
+    if max_age_days > 0:
+        cutoff = now - max_age_days * 86400
+        collected = [it for it in collected if (not it.edit_time) or it.edit_time >= cutoff]
+    collected.sort(key=lambda it: it.vote_up_count, reverse=True)
+    return dedupe_items(collected)

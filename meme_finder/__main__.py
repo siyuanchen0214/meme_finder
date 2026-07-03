@@ -93,6 +93,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     zh.add_argument("--hot-limit", type=int, default=15, help="How many hot-list topics to include (max 30).")
     zh.add_argument("--answers-per-topic", type=int, default=2, help="High-vote answers to show per hot topic.")
+    # 全站高赞板块（不限话题，纯按赞数排）
+    zh.add_argument("--top-voted-top", type=int, default=6, help="How many site-wide top-voted picks (any topic, ranked purely by votes). 0 disables.")
+    zh.add_argument("--top-voted-min-votes", type=int, default=300, help="Minimum vote count for site-wide top-voted picks.")
+    zh.add_argument("--top-voted-max-age-days", type=int, default=365, help="Only keep top-voted content edited within N days (0 = no recency filter).")
+    zh.add_argument("--top-voted-queries", type=int, default=10, help="How many broad seed queries to rotate through per day for the top-voted section.")
     # 搞笑板块（纯热度排序）
     zh.add_argument("--funny-top", type=int, default=8, help="How many funny picks (ranked by votes/comments).")
     zh.add_argument("--funny-min-votes", type=int, default=50, help="Minimum vote count for funny picks.")
@@ -111,6 +116,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="How strongly the knowledge section favors impressive authors (higher = more author-dominant).",
     )
     zh.add_argument("--no-llm", action="store_true", help="Skip LLM joke-decoding even if OPENAI_API_KEY is set.")
+    zh.add_argument("--state-path", default=".state/zhihu_seen.json", help="Path to the dedupe store (keys + hashes, no full text).")
+    zh.add_argument("--no-dedupe", action="store_true", help="Do not skip previously-pushed items (and do not record them).")
     zh.add_argument("--out-dir", default="digests", help="Directory to write the Markdown document into.")
     zh.add_argument("--out", default=None, help="Explicit output file path (overrides --out-dir).")
     zh.add_argument("--email", action="store_true", help="Also email the document (requires SMTP env).")
@@ -269,10 +276,13 @@ def cmd_zhihu_daily(args: argparse.Namespace) -> int:
     from .config import load_zhihu_secret_from_env
     from .zhihu import ZhihuClient
     from .zhihu_digest import collect_digest_data, render_html, render_markdown
+    from .zhihu_seen import SeenStore
 
     secret = load_zhihu_secret_from_env()
     openai_cfg = load_openai_from_env()
     api_key = None if args.no_llm else openai_cfg.api_key
+
+    seen_store = None if args.no_dedupe else SeenStore.load(args.state_path)
 
     client = ZhihuClient(secret)
     date_str = datetime.now().astimezone().strftime("%Y-%m-%d")
@@ -280,6 +290,10 @@ def cmd_zhihu_daily(args: argparse.Namespace) -> int:
         client,
         hot_limit=args.hot_limit,
         answers_per_topic=args.answers_per_topic,
+        top_voted_top_n=args.top_voted_top,
+        top_voted_min_votes=args.top_voted_min_votes,
+        top_voted_max_age_days=args.top_voted_max_age_days,
+        top_voted_query_count=args.top_voted_queries,
         funny_top_n=args.funny_top,
         funny_min_votes=args.funny_min_votes,
         knowledge_top_n=args.knowledge_top,
@@ -288,7 +302,11 @@ def cmd_zhihu_daily(args: argparse.Namespace) -> int:
         api_key=api_key,
         model=openai_cfg.model,
         date_str=date_str,
+        seen_store=seen_store,
     )
+    if seen_store is not None:
+        seen_store.save()
+        print(f"Dedupe store updated: {args.state_path} ({len(seen_store.keys)} keys)", file=sys.stderr)
     doc = render_markdown(data)
 
     out_path = args.out or os.path.join(args.out_dir, f"zhihu-{date_str}.md")
