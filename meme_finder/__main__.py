@@ -87,6 +87,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Plain text body for the test message.",
     )
 
+    zh = sub.add_parser(
+        "zhihu-daily",
+        help="Pull Zhihu hot list + high-vote answers + meme picks into a Markdown document.",
+    )
+    zh.add_argument("--hot-limit", type=int, default=15, help="How many hot-list topics to include (max 30).")
+    zh.add_argument("--answers-per-topic", type=int, default=2, help="High-vote answers to show per hot topic.")
+    # 搞笑板块（纯热度排序）
+    zh.add_argument("--funny-top", type=int, default=8, help="How many funny picks (ranked by votes/comments).")
+    zh.add_argument("--funny-min-votes", type=int, default=50, help="Minimum vote count for funny picks.")
+    # 拓展边界板块（作者含金量排序）
+    zh.add_argument("--knowledge-top", type=int, default=8, help="How many knowledge picks (ranked by author credibility).")
+    zh.add_argument(
+        "--knowledge-min-cred",
+        type=float,
+        default=2.0,
+        help="Minimum author credibility for knowledge picks (must have a real credential).",
+    )
+    zh.add_argument(
+        "--authority-weight",
+        type=float,
+        default=4.0,
+        help="How strongly the knowledge section favors impressive authors (higher = more author-dominant).",
+    )
+    zh.add_argument("--no-llm", action="store_true", help="Skip LLM joke-decoding even if OPENAI_API_KEY is set.")
+    zh.add_argument("--out-dir", default="digests", help="Directory to write the Markdown document into.")
+    zh.add_argument("--out", default=None, help="Explicit output file path (overrides --out-dir).")
+    zh.add_argument("--email", action="store_true", help="Also email the document (requires SMTP env).")
+    zh.add_argument("--no-open", action="store_true", help="Do not print the document body to stdout.")
+
     return p
 
 
@@ -234,6 +263,61 @@ def cmd_test_email(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_zhihu_daily(args: argparse.Namespace) -> int:
+    load_app_env()
+
+    from .config import load_zhihu_secret_from_env
+    from .zhihu import ZhihuClient
+    from .zhihu_digest import collect_digest_data, render_html, render_markdown
+
+    secret = load_zhihu_secret_from_env()
+    openai_cfg = load_openai_from_env()
+    api_key = None if args.no_llm else openai_cfg.api_key
+
+    client = ZhihuClient(secret)
+    date_str = datetime.now().astimezone().strftime("%Y-%m-%d")
+    data = collect_digest_data(
+        client,
+        hot_limit=args.hot_limit,
+        answers_per_topic=args.answers_per_topic,
+        funny_top_n=args.funny_top,
+        funny_min_votes=args.funny_min_votes,
+        knowledge_top_n=args.knowledge_top,
+        knowledge_min_credibility=args.knowledge_min_cred,
+        authority_weight=args.authority_weight,
+        api_key=api_key,
+        model=openai_cfg.model,
+        date_str=date_str,
+    )
+    doc = render_markdown(data)
+
+    out_path = args.out or os.path.join(args.out_dir, f"zhihu-{date_str}.md")
+    out_dir = os.path.dirname(out_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(doc)
+    print(f"Document written to: {out_path}", file=sys.stderr)
+
+    # Also save the HTML so you can preview it in a browser.
+    html_doc = render_html(data)
+    html_path = os.path.splitext(out_path)[0] + ".html"
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(html_doc)
+    print(f"HTML written to: {html_path}", file=sys.stderr)
+
+    if not args.no_open:
+        print(doc)
+
+    if args.email:
+        email_cfg = load_email_from_env()
+        subject = f"知乎每日速览 — {date_str}"
+        send_email(email_cfg, subject=subject, body_markdown=doc, html=html_doc)
+        print("Email sent.", file=sys.stderr)
+
+    return 0
+
+
 def main() -> int:
     p = build_parser()
     args = p.parse_args()
@@ -243,6 +327,8 @@ def main() -> int:
         return cmd_run_video(args)
     if args.cmd == "test-email":
         return cmd_test_email(args)
+    if args.cmd == "zhihu-daily":
+        return cmd_zhihu_daily(args)
     raise RuntimeError("Unknown command")
 
 

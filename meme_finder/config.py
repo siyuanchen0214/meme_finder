@@ -94,10 +94,20 @@ def load_email_from_env() -> EmailConfig:
 
 def load_openai_from_env() -> OpenAIConfig:
     return OpenAIConfig(
-        api_key=os.getenv("OPENAI_API_KEY") or None,
+        api_key=(os.getenv("OPENAI_API_KEY") or "").strip() or None,
         model=os.getenv("OPENAI_MODEL") or "gpt-4o-mini",
         whisper_model=os.getenv("OPENAI_WHISPER_MODEL") or "whisper-1",
     )
+
+
+def load_zhihu_secret_from_env() -> str:
+    secret = (os.getenv("ZHIHU_ACCESS_SECRET") or "").strip()
+    if not secret:
+        raise RuntimeError(
+            "Missing ZHIHU_ACCESS_SECRET. Add it to your .env "
+            "(get it from developer.zhihu.com 个人中心)."
+        )
+    return secret
 
 
 def load_config(sources_path: str, *, require_email: bool = True) -> AppConfig:
